@@ -18,7 +18,7 @@ UE_ADDR = "192.168.0.1"
 DN_ADDR = "172.16.4.1"
 
 RATE = 5  # packets per second
-PAYLOAD = ' '.join(['hello'])
+PAYLOAD = ' '.join(['to DN'] * 50)
 
 #parser = argparse.ArgumentParser(description='Send UDP packets to the given IPv4 address')
 #parser.add_argument('ipv4_dst', type=str, help="Destination IPv4 address")
@@ -43,4 +43,4 @@ iface = get_if()
 print("Sending %d UDP packets per second to ..." % (RATE))
 
 pkt = ETHER/IP(src=gNB_ADDR,dst=UPF_ADDR) / UDP(sport=2152, dport=2152) /GTP/IP(src=UE_ADDR,dst=DN_ADDR)/UDP(sport=10053,dport=10053)/PAYLOAD
-sendp(pkt, iface=iface, inter=1.0 / RATE, loop=True, verbose=True)
+sendp(pkt, iface=iface, inter=5.0, loop=True, verbose=True)

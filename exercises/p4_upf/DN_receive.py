@@ -1,0 +1,83 @@
+#!/usr/bin/python3
+# SPDX-FileCopyrightText: 2022-present Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# Script used in Exercise 3 that sniffs packets and prints on screen whether
+# they are GTP encapsulated or not.
+
+import signal
+import sys
+
+from scapy.layers.inet import IP ,UDP, Ether
+from scapy.contrib import gtp
+from scapy.sendrecv import sniff
+from scapy.all import get_if_list
+from scapy.sendrecv import send, sendp
+from scapy.all import get_if_hwaddr, get_if_list
+
+pkt_count = 0
+iface = None
+
+gNB_ADDR = "172.16.1.99"
+UPF_ADDR = "172.16.1.254"
+UE_ADDR = "192.168.0.1"
+DN_ADDR = "172.16.4.1"
+PAYLOAD = ' '.join(['to UE'] * 50)
+
+
+def reply():
+    global iface
+    ETHER = Ether(dst="4e:97:ec:04:c7:f9")
+    pkt = ETHER/IP(src=DN_ADDR,dst=UE_ADDR) / UDP(sport=10053, dport=10053) /PAYLOAD
+    sendp(pkt, iface=iface, verbose=False)
+
+
+
+def handle_pkt(pkt, ex):
+    global pkt_count
+    pkt_count = pkt_count + 1
+    if gtp.GTP_U_Header in pkt:
+        is_gtp_encap = True
+    else:
+        is_gtp_encap = False
+        reply()
+
+    print("[%d] %d bytes: Mac %s -> %s IP %s -> %s, is_gtp_encap=%s\n\t%s" % (
+        pkt_count, len(pkt), pkt[Ether].src, pkt[Ether].dst, pkt[IP].src, pkt[IP].dst,
+        is_gtp_encap, pkt.summary()))
+
+
+    if is_gtp_encap and ex:
+        exit()
+
+def handle_timeout(signum, frame):
+    print("Timeout! Did not receive any GTP packet")
+    exit(1)
+
+def get_if():
+    ifs=get_if_list()
+    iface=None
+    for i in get_if_list():
+        if "eth0" in i:
+            iface=i
+            break;
+    if not iface:
+        print("Cannot find eth0 interface")
+        exit(1)
+    return iface
+
+
+
+print("Will print a line for each UDP packet received...")
+
+
+exitOnSuccess = False
+if len(sys.argv) > 1 and sys.argv[1] == "-e":
+    # wait max 10 seconds or exit
+    signal.signal(signal.SIGALRM, handle_timeout)
+    signal.alarm(10)
+    exitOnSuccess = True
+
+iface = get_if()
+
+sniff(count=0, iface = iface, filter="udp", store=False, prn=lambda x: handle_pkt(x, exitOnSuccess))

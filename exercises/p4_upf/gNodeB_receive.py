@@ -14,27 +14,25 @@ from scapy.sendrecv import sniff
 from scapy.all import get_if_list
 
 pkt_count = 0
-
+gNB_ADDR = "172.16.1.99"
 
 def handle_pkt(pkt, ex):
-    global pkt_count
-    pkt_count = pkt_count + 1
-    if gtp.GTP_U_Header in pkt:
-        is_gtp_encap = True
-    else:
-        is_gtp_encap = False
+    
+    if pkt[IP].dst == gNB_ADDR:
+        global pkt_count
+        pkt_count = pkt_count + 1
+        if gtp.GTP_U_Header in pkt:
+            is_gtp_encap = True
+        else:
+            is_gtp_encap = False
 
-    print("[%d] %d bytes: Mac %s -> %s IP %s -> %s, is_gtp_encap=%s\n\t%s" % (
-        pkt_count, len(pkt), pkt[Ether].src, pkt[Ether].dst, pkt[IP].src, pkt[IP].dst,
-        is_gtp_encap, pkt.summary()))
-
-
-    if is_gtp_encap and ex:
-        exit()
+        print("[%d] %d bytes: Mac %s -> %s IP %s -> %s, is_gtp_encap=%s\n\t%s" % (
+            pkt_count, len(pkt), pkt[Ether].src, pkt[Ether].dst, pkt[IP].src, pkt[IP].dst,
+            is_gtp_encap, pkt.summary()))
 
 
-print("Will print a line for each UDP packet received...")
-
+        if is_gtp_encap and ex:
+            exit()
 
 def handle_timeout(signum, frame):
     print("Timeout! Did not receive any GTP packet")
@@ -51,6 +49,10 @@ def get_if():
         print("Cannot find eth0 interface")
         exit(1)
     return iface
+
+
+
+print("Will print a line for each UDP packet received...")
 
 
 exitOnSuccess = False

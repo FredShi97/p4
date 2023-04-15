@@ -107,12 +107,14 @@ def printGrpcError(e):
 
 def writeRules(p4info_helper, sw):
 
+    # my station MAC
+    writeMyStationRules(p4info_helper, sw, dst_mac="4e:97:ec:04:c7:f9")
+    writeMyStationRules(p4info_helper, sw, dst_mac="ae:20:97:b1:d8:3a")
+
+    # uplink 
     writeRoute_v4Rules(p4info_helper, sw, dst_ip_addr="172.16.4.1", mask=32,
                       src_mac="ae:20:97:b1:d8:3a", dst_mac="08:00:00:00:02:22", egress_port=2)
 
-
-    writeMyStationRules(p4info_helper, sw, dst_mac="4e:97:ec:04:c7:f9")
-    writeMyStationRules(p4info_helper, sw, dst_mac="ae:20:97:b1:d8:3a")
 
     writeInterfaceRules(p4info_helper, sw, dst_ip_addr="172.16.1.254", matching_bits=32,
                       src_iface=InterfaceType.ACESS.value, direction=Direction.UPLINK.value, slice_id=Slice.DEFAULT.value)
@@ -121,8 +123,21 @@ def writeRules(p4info_helper, sw):
 
     writeTerminationUplinkRules(p4info_helper, sw, ue_address="192.168.0.1", app_id=0,
                      ctr_idx=0, tc=TrafficClass.BEST_EFFORT.value, app_meter_idx=0)
+    
+    # downlink 
+    writeRoute_v4Rules(p4info_helper, sw, dst_ip_addr="172.16.1.99", mask=32,
+                      src_mac="08:00:00:00:02:22", dst_mac="ae:20:97:b1:d8:3a", egress_port=1)
+    
+    writeInterfaceRules(p4info_helper, sw, dst_ip_addr="192.168.0.1", matching_bits=32,
+                      src_iface=InterfaceType.ACESS.value, direction=Direction.DOWNLINK.value, slice_id=Slice.DEFAULT.value)
 
+    writeSessionsDownlinkRules(p4info_helper, sw, ue_address="192.168.0.1", session_meter_idx=1, tunnel_peer_id=2)
 
+    writeTerminationDownlinkRules(p4info_helper, sw, ue_address="192.168.0.1", app_id=0,
+                     ctr_idx=1, teid=2, qfi=1, tc=TrafficClass.BEST_EFFORT.value, app_meter_idx=1)
+
+    writeTunnelPeersRules(p4info_helper, sw, tunnel_peer_id=2, src_addr="172.16.1.254",
+                     dst_addr="172.16.1.99", sport=2152)
 
 
 def main(p4info_file_path, bmv2_file_path):

@@ -99,8 +99,7 @@ def writeSessionsDownlinkRules(p4info_helper, sw, ue_address, session_meter_idx,
     table_entry = p4info_helper.buildTableEntry(
         table_name="PreQosPipe.sessions_downlink",
         match_fields={
-            "ue_address": ue_address,
-            "session_meter_idx": session_meter_idx
+            "ue_address": ue_address
         },
         action_name="PreQosPipe.set_session_downlink",
         action_params={
