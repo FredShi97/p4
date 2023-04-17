@@ -60,7 +60,7 @@ def readTableRules(p4info_helper, sw):
     print('\n----- Reading tables rules for %s -----' % sw.name)
     for response in sw.ReadTableEntries():
         print("tables here")
-        print(response)
+        #print(response)
         for entity in response.entities:
             entry = entity.table_entry
             # TODO For extra credit, you can use the p4info_helper to translate
@@ -89,6 +89,7 @@ def printCounter(p4info_helper, sw, counter_name, index):
     :param counter_name: the name of the counter from the P4 program
     :param index: the counter index (in our case, the tunnel ID)
     """
+    ret = []
     for response in sw.ReadCounters(p4info_helper.get_counters_id(counter_name), index):
         for entity in response.entities:
             counter = entity.counter_entry
@@ -96,6 +97,10 @@ def printCounter(p4info_helper, sw, counter_name, index):
                 sw.name, counter_name, index,
                 counter.data.packet_count, counter.data.byte_count
             ))
+            ret.append(counter.data.byte_count)
+    
+    return ret 
+    
 
 def printGrpcError(e):
     print("gRPC Error:", e.details(), end=' ')
@@ -133,11 +138,30 @@ def writeRules(p4info_helper, sw):
 
     writeSessionsDownlinkRules(p4info_helper, sw, ue_address="192.168.0.1", session_meter_idx=1, tunnel_peer_id=2)
 
-    writeTerminationDownlinkRules(p4info_helper, sw, ue_address="192.168.0.1", app_id=0,
-                     ctr_idx=1, teid=2, qfi=1, tc=TrafficClass.BEST_EFFORT.value, app_meter_idx=1)
-
     writeTunnelPeersRules(p4info_helper, sw, tunnel_peer_id=2, src_addr="172.16.1.254",
                      dst_addr="172.16.1.99", sport=2152)
+
+
+    #rule dictionary
+    rule = {
+        "action": "forward",
+        "ue_address": "192.168.0.1",
+        "app_id": 0,
+        "ctr_idx": 1,
+        "teid": 2,
+        "qfi": 1,
+        "tc": TrafficClass.BEST_EFFORT.value,
+        "app_meter_idx": 1
+    }
+
+    # rule = {
+    #     "action": "drop",
+    #     "ue_address": "192.168.0.1",
+    #     "app_id": 0,
+    #     "ctr_idx": 1
+    # }
+    writeTerminationDownlinkRules(p4info_helper, sw, rule=rule)
+
 
 
 def main(p4info_file_path, bmv2_file_path):
@@ -171,13 +195,34 @@ def main(p4info_file_path, bmv2_file_path):
         readTableRules(p4info_helper, s1)
 
         # Print the tunnel counters every 2 seconds
+
+        terminateDownlink = False
+        threshold = 10 * 1024 #10Kb
+
         while True:
             sleep(2)
             print('\n----- Reading tunnel counters -----')
-            printCounter(p4info_helper, s1, "PreQosPipe.pre_qos_counter", 100)
-            # printCounter(p4info_helper, s2, "MyIngress.egressTunnelCounter", 100)
-            # printCounter(p4info_helper, s2, "MyIngress.ingressTunnelCounter", 200)
-            # printCounter(p4info_helper, s1, "MyIngress.egressTunnelCounter", 200)
+            # 1 is downlink counter
+            transmitted_bytes = printCounter(p4info_helper, s1, "PreQosPipe.pre_qos_counter", 1)
+            if (not terminateDownlink) and transmitted_bytes[0] > threshold:
+                #terminate downlink, simulate billing-related termination 
+                # delete rule 
+                rule = {
+                    "action": "forward",
+                    "ue_address": "192.168.0.1",
+                    "app_id": 0,
+                    "ctr_idx": 1,
+                    "teid": 2,
+                    "qfi": 1,
+                    "tc": TrafficClass.BEST_EFFORT.value,
+                    "app_meter_idx": 1
+                }
+                writeTerminationDownlinkRules(p4info_helper, s1, rule=rule, delete=True)
+                print("Billing related downlink termination")
+                terminateDownlink = True
+
+            # 0 is uplink counter, assigned in main 
+
 
     except KeyboardInterrupt:
         print(" Shutting down.")

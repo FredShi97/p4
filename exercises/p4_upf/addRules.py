@@ -12,6 +12,7 @@ import p4runtime_lib.helper
 from p4runtime_lib.switch import ShutdownAllSwitchConnections
 
 
+
 def writeRoute_v4Rules(p4info_helper, sw, dst_ip_addr, mask,
                      src_mac, dst_mac, egress_port):
 
@@ -155,24 +156,40 @@ def writeTerminationUplinkRules(p4info_helper, sw, ue_address, app_id,
     print(f"install termination uplink rule: ue_address:{ue_address}, app_id: {app_id}, \
     action param: ctr_idx: {ctr_idx}, tc: {tc}, app_meter_idx: {app_meter_idx}")
 
-def writeTerminationDownlinkRules(p4info_helper, sw, ue_address, app_id,
-                     ctr_idx, teid, qfi, tc, app_meter_idx):
+def writeTerminationDownlinkRules(p4info_helper, sw, rule, delete=False):
     # 1) Tunnel Ingress Rule
+    
+    if rule['action'] == 'drop':
+        action_name = "PreQosPipe.do_drop"
+        action_params = None
+        print("drop")
+        update = True
+    else:
+        action_name = "PreQosPipe.downlink_term_fwd"
+        action_params = {
+            "ctr_idx": rule["ctr_idx"],
+            "teid": rule["teid"],
+            "qfi": rule["qfi"],
+            "tc": rule["tc"],
+            "app_meter_idx": rule["app_meter_idx"]
+        }
+        update = False
+
     table_entry = p4info_helper.buildTableEntry(
         table_name="PreQosPipe.terminations_downlink",
         match_fields={
-            "ue_address": ue_address,
-            "app_id": app_id
+            "ue_address": rule["ue_address"],
+            "app_id": rule["app_id"]
         },
-        action_name="PreQosPipe.downlink_term_fwd",
-        action_params={
-            "ctr_idx": ctr_idx,
-            "teid": teid,
-            "qfi": qfi,
-            "tc": tc,
-            "app_meter_idx": app_meter_idx
-        })
-    sw.WriteTableEntry(table_entry)
+        action_name=action_name,
+        action_params=action_params)
 
-    print(f"install termination uplink rule: ue_address:{ue_address}, app_id: {app_id}, \
-    action param: ctr_idx: {ctr_idx}, teid: {teid}, qfi: {qfi}, tc: {tc}, app_meter_idx: {app_meter_idx}")
+    print(table_entry)
+    print(table_entry.is_default_action)
+
+    if delete:
+        sw.DeleteTableEntry(table_entry)
+    else:
+        sw.WriteTableEntry(table_entry)
+
+    print(rule)
