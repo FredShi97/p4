@@ -134,7 +134,7 @@ def writeRules(p4info_helper, sw):
                       src_mac="08:00:00:00:02:22", dst_mac="ae:20:97:b1:d8:3a", egress_port=1)
     
     writeInterfaceRules(p4info_helper, sw, dst_ip_addr="192.168.0.1", matching_bits=32,
-                      src_iface=InterfaceType.ACESS.value, direction=Direction.DOWNLINK.value, slice_id=Slice.DEFAULT.value)
+                      src_iface=InterfaceType.CORE.value, direction=Direction.DOWNLINK.value, slice_id=Slice.DEFAULT.value)
 
     writeSessionsDownlinkRules(p4info_helper, sw, ue_address="192.168.0.1", session_meter_idx=1, tunnel_peer_id=2)
 
